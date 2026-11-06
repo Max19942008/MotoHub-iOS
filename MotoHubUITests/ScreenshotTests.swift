@@ -63,7 +63,7 @@ final class ScreenshotTests: XCTestCase {
         pause(1)
         snap("kirish")
 
-        app.segmentedControls.buttons["Ro‘yxatdan o‘tish"].tap()
+        app.buttons["Ro‘yxatdan o‘tish"].firstMatch.tap()
         pause(1)
         snap("royxatdan-otish")
     }

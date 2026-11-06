@@ -61,6 +61,7 @@ struct AssistantView: View {
                 .foregroundStyle(.secondary)
             ForEach(model.suggestions, id: \.self) { suggestion in
                 Button {
+                    inputFocused = false
                     Task { await model.send(suggestion) }
                 } label: {
                     Text(suggestion)
@@ -100,6 +101,8 @@ struct AssistantView: View {
     }
 
     private func send() {
+        // Close the keyboard so the answer and the tab bar are visible.
+        inputFocused = false
         Task { await model.send() }
     }
 }
