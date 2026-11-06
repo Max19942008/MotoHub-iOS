@@ -24,6 +24,7 @@ struct MotorbikeListView: View {
                 )
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("listing-card")
         }
         .navigationTitle("Mototsikllar")
         .searchable(text: $searchText, prompt: "Model yoki brend")

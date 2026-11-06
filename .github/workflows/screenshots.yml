@@ -1,0 +1,78 @@
+name: Screenshots
+
+# Runs the app on an iPhone simulator against the live backend and saves a
+# screenshot of each main screen as the "screenshots" artifact.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Boot a simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          runtimes = sorted((k for k in devices if "iOS" in k), reverse=True)
+          for want in ("iPhone 16 Pro", "iPhone"):
+              for runtime in runtimes:
+                  for d in devices[runtime]:
+                      if d["name"].startswith(want):
+                          print(d["udid"]); sys.exit()
+          ')
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+
+      - name: Wake the backend
+        run: |
+          curl -s -m 150 -o /dev/null -w "backend: %{http_code} in %{time_total}s\n" \
+            -H 'Content-Type: application/json' -d '{"query":"{ __typename }"}' \
+            https://motohub-ci05.onrender.com/graphql || true
+
+      - name: Run screenshot walk-through
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project MotoHub.xcodeproj \
+            -scheme MotoHubScreenshots \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -resultBundlePath Screens.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            | grep -E "error:|Test Case|\*\* TEST|XCTAssert|failed" || true
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw screenshots
+          xcrun xcresulttool export attachments --path Screens.xcresult --output-path raw
+          python3 - <<'PY'
+          import json, os, shutil
+          manifest = json.load(open("raw/manifest.json"))
+          for test in manifest:
+              for a in test.get("attachments", []):
+                  name = a.get("suggestedHumanReadableName") or a["exportedFileName"]
+                  base = name.split("_")[0]
+                  ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
+                  shutil.copy(os.path.join("raw", a["exportedFileName"]), os.path.join("screenshots", base + ext))
+          print(sorted(os.listdir("screenshots")))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/

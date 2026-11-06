@@ -82,6 +82,7 @@ struct AssistantView: View {
             TextField("Savolingizni yozing…", text: $model.draft, axis: .vertical)
                 .lineLimit(1...4)
                 .focused($inputFocused)
+                .accessibilityIdentifier("ai-input")
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
@@ -91,6 +92,7 @@ struct AssistantView: View {
             }
             .disabled(!model.canSend)
             .accessibilityLabel("Yuborish")
+            .accessibilityIdentifier("ai-send")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)

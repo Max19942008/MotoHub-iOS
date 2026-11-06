@@ -59,7 +59,29 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: uz.motohub.app.tests
 
+  # Screenshot walk-through against the live backend (CI: .github/workflows/screenshots.yml).
+  MotoHubUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MotoHubUITests
+    dependencies:
+      - target: MotoHub
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: uz.motohub.app.uitests
+
 schemes:
+  MotoHubScreenshots:
+    build:
+      targets:
+        MotoHub: all
+        MotoHubUITests: [test]
+    test:
+      targets:
+        - MotoHubUITests
+
   MotoHub:
     build:
       targets:

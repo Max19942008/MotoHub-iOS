@@ -38,6 +38,7 @@ struct PartListView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("listing-card")
             }
             .id(category) // fresh scroll position and .task per category
         }
