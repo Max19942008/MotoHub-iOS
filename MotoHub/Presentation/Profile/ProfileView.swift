@@ -148,6 +148,7 @@ private struct AuthFormView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
 
                 Picker("Rejim", selection: $isSignup) {
                     Text("Kirish").tag(false)
