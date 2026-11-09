@@ -41,7 +41,7 @@ jobs:
         run: |
           curl -s -m 150 -o /dev/null -w "backend: %{http_code} in %{time_total}s\n" \
             -H 'Content-Type: application/json' -d '{"query":"{ __typename }"}' \
-            https://motohub-ci05.onrender.com/graphql || true
+            https://api.motopresto.online/graphql || true
 
       - name: Run screenshot walk-through
         run: |

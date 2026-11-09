@@ -61,7 +61,7 @@ CI is in `.github/workflows/ios.yml`. On every push it generates the project, bu
 2. In `project.yml`, set `DEVELOPMENT_TEAM` to your team ID, then run `xcodegen generate`.
 3. In Xcode, choose **Product → Archive**, then **Distribute App → App Store Connect**. You can do the same without a Mac with Codemagic or a GitHub Actions workflow that has signing secrets.
 4. In App Store Connect:
-   - Privacy policy URL: https://ignition-plum.vercel.app/privacy
+   - Privacy policy URL: https://motopresto.online/privacy
    - Account deletion is in the app under Profil → Hisobni o‘chirish.
    - Give the reviewer a demo login.
 

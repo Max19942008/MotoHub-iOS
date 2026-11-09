@@ -3,8 +3,8 @@ import Foundation
 /// Backend and website addresses come from Info.plist (MHAPIBaseURL / MHSiteURL),
 /// which are filled from the API_BASE_URL / SITE_URL build settings.
 enum AppConfig {
-    static let apiBaseURL = url(forInfoKey: "MHAPIBaseURL", fallback: "https://motohub-ci05.onrender.com")
-    static let siteURL = url(forInfoKey: "MHSiteURL", fallback: "https://ignition-plum.vercel.app")
+    static let apiBaseURL = url(forInfoKey: "MHAPIBaseURL", fallback: "https://api.motopresto.online")
+    static let siteURL = url(forInfoKey: "MHSiteURL", fallback: "https://motopresto.online")
 
     static var graphQLURL: URL { apiBaseURL.appendingPathComponent("graphql") }
     static var privacyPolicyURL: URL { siteURL.appendingPathComponent("privacy") }

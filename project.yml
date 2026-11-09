@@ -44,8 +44,8 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
-        API_BASE_URL: https://motohub-ci05.onrender.com
-        SITE_URL: https://ignition-plum.vercel.app
+        API_BASE_URL: https://api.motopresto.online
+        SITE_URL: https://motopresto.online
 
   MotoHubTests:
     type: bundle.unit-test
