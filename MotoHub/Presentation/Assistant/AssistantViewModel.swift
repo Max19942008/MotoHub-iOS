@@ -43,5 +43,23 @@ final class AssistantViewModel {
 
     func clear() {
         messages = []
+        reported = []
+    }
+
+    // MARK: - Reporting answers
+
+    /// Answers the user already reported in this chat.
+    private(set) var reported: Set<UUID> = []
+
+    /// The user question an assistant answer replied to.
+    func question(for answer: ChatMessage) -> String {
+        guard let index = messages.firstIndex(where: { $0.id == answer.id }) else { return "-" }
+        return messages[..<index].last(where: { $0.role == .user })?.text ?? "-"
+    }
+
+    /// Throws so the report sheet can show the error and stay open.
+    func report(_ answer: ChatMessage, reason: AIReportReason, comment: String) async throws {
+        try await repository.report(reason: reason, question: question(for: answer), answer: answer.text, comment: comment)
+        reported.insert(answer.id)
     }
 }

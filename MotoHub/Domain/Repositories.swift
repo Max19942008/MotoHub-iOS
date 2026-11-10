@@ -24,4 +24,6 @@ protocol AuthRepository: Sendable {
 protocol AssistantRepository: Sendable {
     /// The server keeps no chat state, so earlier turns go along with every question.
     func ask(_ message: String, history: [ChatMessage]) async throws -> ChatMessage
+    /// Flags an offensive or wrong answer for admin review.
+    func report(reason: AIReportReason, question: String, answer: String, comment: String) async throws
 }

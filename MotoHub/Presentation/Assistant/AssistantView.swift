@@ -3,6 +3,8 @@ import SwiftUI
 struct AssistantView: View {
     @State private var model: AssistantViewModel
     @FocusState private var inputFocused: Bool
+    @State private var reporting: ChatMessage?
+    @State private var reportThanks = false
 
     init(repository: any AssistantRepository) {
         _model = State(initialValue: AssistantViewModel(repository: repository))
@@ -16,7 +18,12 @@ struct AssistantView: View {
                         intro
                     }
                     ForEach(model.messages) { message in
-                        MessageRow(message: message).id(message.id)
+                        MessageRow(
+                            message: message,
+                            reported: model.reported.contains(message.id),
+                            onReport: { reporting = message }
+                        )
+                        .id(message.id)
                     }
                     if model.isSending {
                         HStack(spacing: 8) {
@@ -39,6 +46,17 @@ struct AssistantView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { inputBar }
+        .sheet(item: $reporting) { answer in
+            ReportSheet { reason, comment in
+                try await model.report(answer, reason: reason, comment: comment)
+                reportThanks = true
+            }
+        }
+        .alert("Rahmat!", isPresented: $reportThanks) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Shikoyatingiz qabul qilindi, uni ko‘rib chiqamiz.")
+        }
         .navigationTitle("AI yordamchi")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -57,7 +75,7 @@ struct AssistantView: View {
                 .font(.system(size: 36))
                 .foregroundStyle(Color.accentColor)
             Text("Nima qidiryapsiz?").font(.title2.bold())
-            Text("MotoHub e’lonlaridan mos mototsikl, qism yoki aksessuar topib beraman. O‘zbekcha, ruscha yoki inglizcha yozing.")
+            Text("MotoHub e’lonlaridan mos mototsikl, qism yoki aksessuar topib beraman. O‘zbekcha, ruscha yoki inglizcha yozing. Javoblar sun’iy intellekt tomonidan yaratiladi va xato bo‘lishi mumkin.")
                 .foregroundStyle(.secondary)
             ForEach(model.suggestions, id: \.self) { suggestion in
                 Button {
@@ -109,6 +127,8 @@ struct AssistantView: View {
 
 private struct MessageRow: View {
     let message: ChatMessage
+    let reported: Bool
+    let onReport: () -> Void
 
     var body: some View {
         switch message.role {
@@ -131,6 +151,20 @@ private struct MessageRow: View {
                 ForEach(Array(message.sources.enumerated()), id: \.offset) { index, source in
                     SourceCard(number: index + 1, source: source)
                 }
+                HStack(spacing: 6) {
+                    Text("AI javobi, xato bo‘lishi mumkin")
+                    if reported {
+                        Text("· Shikoyat yuborildi")
+                    } else {
+                        Button(action: onReport) {
+                            Label("Shikoyat qilish", systemImage: "flag")
+                        }
+                        .foregroundStyle(Color.red)
+                        .accessibilityIdentifier("ai-report")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
             .padding(.trailing, 24)
         case .error:
@@ -183,5 +217,69 @@ private struct SourceCard: View {
         .padding(10)
         .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(.separator), lineWidth: 0.5))
+    }
+}
+
+/// Asks why the answer is bad and sends the report; stays open on errors.
+private struct ReportSheet: View {
+    let submit: (AIReportReason, String) async throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var reason: AIReportReason?
+    @State private var comment = ""
+    @State private var isSending = false
+    @State private var errorText: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Bu javobda nima noto‘g‘ri?") {
+                    Picker("Sabab", selection: $reason) {
+                        ForEach(AIReportReason.allCases) { reason in
+                            Text(reason.label).tag(Optional(reason))
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                }
+                Section("Izoh (ixtiyoriy)") {
+                    TextField("Qo‘shimcha ma’lumot", text: $comment, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+                if let errorText {
+                    Section { Text(errorText).foregroundStyle(Color.red) }
+                }
+            }
+            .navigationTitle("AI javobi ustidan shikoyat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Bekor qilish") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSending {
+                        ProgressView()
+                    } else {
+                        Button("Yuborish") { send() }.disabled(reason == nil)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func send() {
+        guard let reason else { return }
+        isSending = true
+        errorText = nil
+        Task {
+            do {
+                try await submit(reason, comment)
+                dismiss()
+            } catch {
+                errorText = error.localizedDescription
+            }
+            isSending = false
+        }
     }
 }

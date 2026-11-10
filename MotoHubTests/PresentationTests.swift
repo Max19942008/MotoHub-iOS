@@ -54,6 +54,22 @@ final class PresentationTests: XCTestCase {
         XCTAssertEqual(repository.lastHistoryCount, 2)
     }
 
+    func testReportingAnAnswerSendsItsQuestionAndMarksIt() async throws {
+        let repository = FakeAssistant()
+        let model = AssistantViewModel(repository: repository)
+        await model.send("Honda bormi?")
+        let answer = try XCTUnwrap(model.messages.last)
+
+        try await model.report(answer, reason: .wrong, comment: "")
+        XCTAssertEqual(repository.lastReport?.reason, .wrong)
+        XCTAssertEqual(repository.lastReport?.question, "Honda bormi?")
+        XCTAssertEqual(repository.lastReport?.answer, "Ha, bor [1]")
+        XCTAssertTrue(model.reported.contains(answer.id))
+
+        model.clear()
+        XCTAssertTrue(model.reported.isEmpty)
+    }
+
     func testSessionLoginAndDelete() async throws {
         let auth = FakeAuth()
         let session = SessionStore(repository: auth)
@@ -103,6 +119,13 @@ private final class FakeAssistant: AssistantRepository, @unchecked Sendable {
         lastHistoryCount = history.count
         if fail { throw AppError.server("Yordamchi hozir ishlamayapti.") }
         return ChatMessage(role: .assistant, text: "Ha, bor [1]")
+    }
+
+    var lastReport: (reason: AIReportReason, question: String, answer: String)?
+
+    func report(reason: AIReportReason, question: String, answer: String, comment: String) async throws {
+        if fail { throw AppError.server("Yuborib bo‘lmadi.") }
+        lastReport = (reason, question, answer)
     }
 }
 

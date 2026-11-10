@@ -106,3 +106,22 @@ struct ChatMessage: Identifiable, Hashable, Sendable {
     let text: String
     var sources: [AISource] = []
 }
+
+/// Why a user flags an AI answer (Google Play / App Store AI-content rules).
+enum AIReportReason: String, CaseIterable, Identifiable, Sendable {
+    case offensive = "OFFENSIVE"
+    case wrong = "WRONG"
+    case spam = "SPAM"
+    case other = "OTHER"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .offensive: "Haqoratli yoki nomaqbul"
+        case .wrong: "Noto‘g‘ri ma’lumot"
+        case .spam: "Spam yoki reklama"
+        case .other: "Boshqa sabab"
+        }
+    }
+}

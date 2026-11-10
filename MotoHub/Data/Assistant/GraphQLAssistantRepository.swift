@@ -22,6 +22,36 @@ struct GraphQLAssistantRepository: AssistantRepository {
         )
     }
 
+    func report(reason: AIReportReason, question: String, answer: String, comment: String) async throws {
+        let trimmed = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let input = ReportInput(
+            reason: reason.rawValue,
+            question: String(question.prefix(1000)),
+            answer: String(answer.prefix(8000)),
+            comment: trimmed.isEmpty ? nil : String(trimmed.prefix(500)),
+            platform: "ios"
+        )
+        _ = try await client.execute(
+            GraphQLOperation<ReportVariables, ReportResponse>(document: Self.reportDocument, variables: ReportVariables(input: input))
+        )
+    }
+
+    private struct ReportInput: Encodable {
+        let reason: String
+        let question: String
+        let answer: String
+        let comment: String?
+        let platform: String
+    }
+
+    private struct ReportVariables: Encodable { let input: ReportInput }
+
+    private struct ReportResponse: Decodable { let reportAssistantAnswer: Bool }
+
+    private static let reportDocument = """
+    mutation ($input: AiReportInput!) { reportAssistantAnswer(input: $input) }
+    """
+
     private struct Turn: Encodable {
         let role: String
         let content: String
