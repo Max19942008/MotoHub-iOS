@@ -1,91 +1,159 @@
 import SwiftUI
+import UIKit
 
-/// Listing photo with a placeholder for missing or broken images
-/// (uploads on the free backend disappear on restart, so this is common).
+/// Network image with the site's empty light gradient when the URL is empty or broken.
 struct RemoteImage: View {
     let path: String?
-    var iconSize: CGFloat = 28
+    var contentMode: ContentMode = .fill
 
     var body: some View {
         if let url = AppConfig.imageURL(path) {
             AsyncImage(url: url, transaction: Transaction(animation: .easeOut(duration: 0.2))) { phase in
-                switch phase {
-                case .success(let image):
-                    image.resizable().scaledToFill()
-                case .empty:
-                    placeholder.overlay { ProgressView() }
-                default:
-                    placeholder
+                if case .success(let image) = phase {
+                    image.resizable().aspectRatio(contentMode: contentMode)
+                } else {
+                    ImagePlaceholder()
                 }
             }
         } else {
-            placeholder
+            ImagePlaceholder()
         }
-    }
-
-    private var placeholder: some View {
-        Rectangle()
-            .fill(Color(.secondarySystemFill))
-            .overlay {
-                Image(systemName: "photo")
-                    .font(.system(size: iconSize))
-                    .foregroundStyle(.secondary)
-            }
     }
 }
 
-struct LoadingStateView: View {
-    var isSlow = false
+struct ImagePlaceholder: View {
+    var body: some View {
+        LinearGradient(colors: [Color(argb: 0xFFFAFAFA), Color(argb: 0xFFE2E2E2)], startPoint: .top, endPoint: .bottom)
+    }
+}
+
+/// Fills a box of the given size with an image, cropped (Flutter's BoxFit.cover).
+struct CoverImage: View {
+    let path: String?
 
     var body: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            if isSlow {
-                Text("Server uyg‘onmoqda, bu bir daqiqagacha cho‘zilishi mumkin…")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        Color.clear
+            .overlay { RemoteImage(path: path) }
+            .clipped()
+    }
+}
+
+/// Round member photo; members without one get the site's default avatar.
+struct Avatar: View {
+    let path: String?
+    var size: CGFloat
+
+    var body: some View {
+        Group {
+            if path == nil || path?.isEmpty == true {
+                DefaultAvatar()
+            } else {
+                CoverImage(path: path)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+    }
+}
+
+/// Grey square with a white silhouette, the site's defaultUser picture.
+struct DefaultAvatar: View {
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                Color(argb: 0xFFEDEDED)
+                Image(systemName: "person.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundStyle(.white)
+                    .padding(geo.size.width * 0.12)
+                    .offset(y: geo.size.width * 0.06)
+            }
+        }
+    }
+}
+
+/// Picked photo -> JPEG of at most `maxSide` px (the backend takes png / jpg / jpeg).
+enum ImageEncoding {
+    static func jpeg(_ data: Data, maxSide: CGFloat = 1200, quality: CGFloat = 0.85) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        let scale = min(1, maxSide / max(image.size.width, image.size.height))
+        let size = CGSize(width: (image.size.width * scale).rounded(), height: (image.size.height * scale).rounded())
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let resized = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        return resized.jpegData(compressionQuality: quality)
+    }
+}
+
+/// Confirm dialog contents shared by logout / delete prompts.
+struct ConfirmAction: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+    let button: String
+    let action: () -> Void
+}
+
+/// Spinner that explains the wait once it gets long (the server may be restarting).
+struct LoadingView: View {
+    @State private var slow = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            ProgressView().controlSize(.large).tint(Brand.green)
+            if slow {
+                Text("Server uyg'onmoqda, bu bir daqiqagacha cho'zilishi mumkin…".tr)
+                    .font(.poppins(14))
                     .multilineTextAlignment(.center)
             }
         }
         .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-struct MessageStateView: View {
-    let systemImage: String
-    let message: String
-    var actionTitle: String?
-    var action: (() -> Void)?
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(message, systemImage: systemImage)
-        } actions: {
-            if let actionTitle, let action {
-                Button(actionTitle, action: action).buttonStyle(.borderedProminent)
-            }
+        .frame(maxWidth: .infinity)
+        .task {
+            try? await Task.sleep(for: .seconds(6))
+            slow = true
         }
     }
 }
 
-struct TagView: View {
-    let text: String
-    var highlighted = false
+struct MessageView: View {
+    let systemImage: String
+    let message: String
+    var onRetry: (() -> Void)?
 
     var body: some View {
-        Text(text)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(highlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill), in: Capsule())
-            .foregroundStyle(highlighted ? Color.accentColor : Color.primary)
+        VStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 44))
+                .foregroundStyle(Color(argb: 0xFF9CA3AF))
+            Text(message.tr)
+                .font(.poppins(14))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(Brand.ink)
+            if let onRetry {
+                Button(action: onRetry) {
+                    Text("Qayta urinish".tr)
+                        .font(.poppins(14, .semibold))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 10)
+                        .background(Brand.green.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Brand.greenDark)
+                }
+                .padding(.top, 4)
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity)
     }
 }
 
-/// Wraps children onto new lines like text.
+/// Wraps children onto new lines like text (Flutter's Wrap).
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8
+    var lineSpacing: CGFloat? = nil
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let maxWidth = proposal.width ?? .infinity
@@ -97,7 +165,7 @@ struct FlowLayout: Layout {
             let size = subview.sizeThatFits(.unspecified)
             if x > 0, x + size.width > maxWidth {
                 x = 0
-                y += rowHeight + spacing
+                y += rowHeight + (lineSpacing ?? spacing)
                 rowHeight = 0
             }
             x += size.width + spacing
@@ -115,7 +183,7 @@ struct FlowLayout: Layout {
             let size = subview.sizeThatFits(.unspecified)
             if x > bounds.minX, x + size.width > bounds.maxX {
                 x = bounds.minX
-                y += rowHeight + spacing
+                y += rowHeight + (lineSpacing ?? spacing)
                 rowHeight = 0
             }
             subview.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
@@ -125,100 +193,77 @@ struct FlowLayout: Layout {
     }
 }
 
-/// Multi-select chips for one filter dimension.
-struct ChipSelector: View {
-    let title: String
-    let options: [String]
-    @Binding var selection: Set<String>
+/// Thin horizontal rule (Flutter's Divider).
+struct Rule: View {
+    var color = Color(argb: 0xFFEAEAEA)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline)
-            FlowLayout(spacing: 8) {
-                ForEach(options, id: \.self) { option in
-                    let isOn = selection.contains(option)
-                    Button {
-                        if isOn { selection.remove(option) } else { selection.insert(option) }
-                    } label: {
-                        Text(Formatting.label(option))
-                            .font(.subheadline)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(isOn ? Color.accentColor : Color(.tertiarySystemFill), in: Capsule())
-                            .foregroundStyle(isOn ? Color.white : Color.primary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(isOn ? .isSelected : [])
-                }
-            }
-        }
+        color.frame(height: 1)
     }
 }
 
-struct ListingCard: View {
-    let title: String
-    let price: String
-    let caption: String
-    let imagePath: String?
+/// The site's bar on pushed pages: dark with the logo; some pages also get a
+/// back arrow (others use the green "Orqaga" button in the content).
+struct LogoBar: View {
+    var back = false
+    @Environment(Router.self) private var router
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Color.clear
-                .frame(height: 120)
-                .overlay { RemoteImage(path: imagePath) }
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            Text(title.isEmpty ? "Nomsiz e’lon" : title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2, reservesSpace: true)
-            Text(price)
-                .font(.headline)
-                .foregroundStyle(Color.accentColor)
-            Text(caption)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
+        HStack(spacing: 4) {
+            if back {
+                Button { router.pop() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 44)
+                }
+                .accessibilityLabel("Orqaga".tr)
+            }
+            BrandLogo()
+            Spacer()
         }
-        .padding(8)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .padding(.leading, back ? 4 : 16)
+        .padding(.trailing, 16)
+        .frame(height: 60)
+        .background(Brand.ink.ignoresSafeArea(edges: .top))
     }
 }
 
-/// Grid with first-load, error, empty, pull-to-refresh and infinite-scroll states.
-struct PagedGrid<Item: Identifiable & Sendable, Query: Equatable & Sendable, Card: View>: View {
-    let model: PagedListViewModel<Item, Query>
-    var emptyMessage = "Hech narsa topilmadi"
-    @ViewBuilder let card: (Item) -> Card
+/// Green "← Orqaga" button at the top of sub-pages.
+struct BackButton: View {
+    @Environment(Router.self) private var router
 
     var body: some View {
-        Group {
-            if model.items.isEmpty {
-                if model.isLoading {
-                    LoadingStateView(isSlow: model.isSlow)
-                } else if let error = model.errorMessage {
-                    MessageStateView(systemImage: "wifi.exclamationmark", message: error, actionTitle: "Qayta urinish") {
-                        Task { await model.reload() }
-                    }
-                } else {
-                    MessageStateView(systemImage: "magnifyingglass", message: emptyMessage)
-                }
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 12)], spacing: 12) {
-                        ForEach(model.items) { item in
-                            card(item)
-                                .onAppear { Task { await model.loadMoreIfNeeded(after: item) } }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    if model.isLoadingMore {
-                        ProgressView().padding()
-                    }
-                }
+        Button { router.pop() } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "arrow.left").font(.system(size: 15, weight: .semibold))
+                Text("Orqaga".tr).font(.poppins(14, .medium))
             }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .frame(height: 38)
+            .background(Brand.siteGreen, in: RoundedRectangle(cornerRadius: 8))
         }
-        .refreshable { await model.reload() }
-        .task { await model.loadIfNeeded() }
+        .buttonStyle(.plain)
+    }
+}
+
+extension View {
+    /// A pushed page with the site's logo bar instead of the system navigation bar.
+    func sitePage(back: Bool = false) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) { LogoBar(back: back) }
+            .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+/// Keeps the swipe-back gesture working on pages that hide the navigation bar.
+extension UINavigationController: @retroactive UIGestureRecognizerDelegate {
+    override open func viewDidLoad() {
+        super.viewDidLoad()
+        interactivePopGestureRecognizer?.delegate = self
+    }
+
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        viewControllers.count > 1
     }
 }

@@ -9,8 +9,8 @@ final class AssistantViewModel {
     var draft = ""
 
     let suggestions = [
-        "Toshkentda 5000$ gacha sport mototsikl bormi?",
-        "Honda uchun tormoz qismlari",
+        "Toshkentda 10 000$ gacha mototsikl bormi?",
+        "Yamaha uchun zanjir kerak",
         "Yangi boshlovchiga qaysi mototsikl mos?",
     ]
 

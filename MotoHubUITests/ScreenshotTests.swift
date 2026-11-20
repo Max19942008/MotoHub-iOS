@@ -15,9 +15,21 @@ final class ScreenshotTests: XCTestCase {
 
     @MainActor
     func testCaptureScreens() {
-        // The free Render backend may need up to a minute to wake up.
+        // Home: hero video, then the carousels.
+        pause(6)
+        snap("bosh-sahifa")
+        app.swipeUp()
+        pause(2)
+        snap("bosh-sahifa-karusel")
+        app.swipeUp()
+        app.swipeUp()
+        pause(1)
+        snap("bosh-sahifa-pastroq")
+
+        openMenu("Mototsikllar")
         let card = app.buttons.matching(identifier: "listing-card").firstMatch
-        let listLoaded = card.waitForExistence(timeout: 150)
+        let listLoaded = card.waitForExistence(timeout: 60)
+        pause(2)
         snap("mototsikllar")
 
         if listLoaded {
@@ -27,45 +39,75 @@ final class ScreenshotTests: XCTestCase {
             app.swipeUp()
             pause(1)
             snap("mototsikl-detail-pasti")
-            app.navigationBars.buttons.element(boundBy: 0).tap()
-        }
-
-        let filters = app.buttons["Filtrlar"].firstMatch
-        if filters.waitForExistence(timeout: 5) {
-            filters.tap()
+            tap(app.buttons["Orqaga"].firstMatch)
             pause(1)
-            snap("filtrlar")
-            app.buttons["Qo‘llash"].firstMatch.tap()
         }
 
-        app.tabBars.buttons["Qismlar"].tap()
-        _ = app.buttons.matching(identifier: "listing-card").firstMatch.waitForExistence(timeout: 60)
-        pause(1)
-        snap("qismlar")
+        openMenu("Ehtiyot qismlar")
+        pause(4)
+        snap("ehtiyot-qismlar")
 
-        app.tabBars.buttons["AI yordamchi"].tap()
+        openMenu("Agentlar")
+        pause(4)
+        snap("agentlar")
+
+        openMenu("Hamjamiyat")
+        pause(4)
+        snap("hamjamiyat")
+
+        openMenu("Yordam")
+        pause(2)
+        snap("yordam")
+
+        app.buttons["menyu-ochiq"].firstMatch.tap()
+        pause(1)
+        snap("menyu")
+        app.buttons["Yordam"].firstMatch.tap()
+        pause(1)
+
+        let chat = app.buttons["Open chat"].firstMatch
+        if chat.waitForExistence(timeout: 5) {
+            chat.tap()
+            pause(4)
+            snap("jonli-chat")
+            app.buttons["Close chat"].firstMatch.tap()
+            pause(1)
+        }
+
+        openMenu("AI yordamchi")
         pause(1)
         snap("ai-yordamchi")
-
         let input = app.descendants(matching: .any).matching(identifier: "ai-input").firstMatch
         if input.waitForExistence(timeout: 5) {
             input.tap()
             input.typeText("Toshkentda arzon sport mototsikl bormi?")
             app.descendants(matching: .any).matching(identifier: "ai-send").firstMatch.tap()
-            let typing = app.staticTexts["Yordamchi javob yozmoqda…"]
+            let typing = app.staticTexts["Qidiryapman…"]
             let done = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: typing)
             _ = XCTWaiter.wait(for: [done], timeout: 120)
             pause(1)
             snap("ai-javob")
         }
 
-        app.tabBars.buttons["Kirish"].tap()
+        openMenu("Kirish / Ro'yxatdan o'tish")
         pause(1)
         snap("kirish")
-
-        app.buttons["Ro‘yxatdan o‘tish"].firstMatch.tap()
+        tap(app.buttons["RO'YXATDAN O'TISH"].firstMatch)
         pause(1)
         snap("royxatdan-otish")
+    }
+
+    private func openMenu(_ item: String) {
+        let menu = app.buttons["menyu-ochiq"].firstMatch
+        guard menu.waitForExistence(timeout: 10) else { return }
+        menu.tap()
+        pause(1)
+        tap(app.buttons[item].firstMatch)
+        pause(1)
+    }
+
+    private func tap(_ element: XCUIElement) {
+        if element.waitForExistence(timeout: 5) { element.tap() }
     }
 
     private func snap(_ name: String) {

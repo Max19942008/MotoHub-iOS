@@ -30,6 +30,11 @@ actor AuthSession: AccessTokenProviding {
         store.save(newTokens)
     }
 
+    /// A new access token for the same session (after a profile update).
+    func replaceAccess(_ access: String) {
+        save(SessionTokens(access: access, refresh: tokens?.refresh))
+    }
+
     /// Drops the local session and returns the refresh token so the caller can revoke it.
     @discardableResult
     func clear() -> String? {
@@ -58,12 +63,17 @@ actor AuthSession: AccessTokenProviding {
             return nil
         }
         do {
-            let result = try await client.execute(AuthOperations.refresh(refresh))
-            guard let access = result.refreshToken.accessToken, !access.isEmpty else {
+            let data = try await client.query(
+                "mutation ($t: String!) { refreshToken(refreshToken: $t) { accessToken refreshToken } }",
+                variables: ["t": refresh],
+                authenticated: false
+            )
+            let pair = data.object("refreshToken")
+            guard let access = pair?.nonEmpty("accessToken") else {
                 expire()
                 return nil
             }
-            save(SessionTokens(access: access, refresh: result.refreshToken.refreshToken ?? refresh))
+            save(SessionTokens(access: access, refresh: pair?.string("refreshToken") ?? refresh))
             return access
         } catch let error as AppError where error.isNetwork {
             // Offline or the server is waking up: keep the session, send the old token.

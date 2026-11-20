@@ -1,17 +1,34 @@
 import Foundation
+import Observation
 
 /// Composition root: the only place that knows concrete types. Screens get
-/// repository protocols, so they can be previewed and tested with fakes.
+/// repository protocols (through the environment), so tests can use fakes.
 @MainActor
+@Observable
 final class AppContainer {
     let listings: any ListingRepository
+    let agents: any AgentRepository
+    let community: any CommunityRepository
+    let myPage: any MyPageRepository
+    let notifications: any NotificationRepository
     let assistant: any AssistantRepository
     let session: SessionStore
+    let chat: ChatService
 
-    init(listings: any ListingRepository, assistant: any AssistantRepository, auth: any AuthRepository) {
-        self.listings = listings
+    init(
+        repository: GraphQLRepository,
+        assistant: any AssistantRepository,
+        auth: any AuthRepository,
+        chatURL: URL
+    ) {
+        listings = repository
+        agents = repository
+        community = repository
+        myPage = repository
+        notifications = repository
         self.assistant = assistant
-        self.session = SessionStore(repository: auth)
+        session = SessionStore(repository: auth)
+        chat = ChatService(url: chatURL, auth: auth)
     }
 
     static func live() -> AppContainer {
@@ -23,9 +40,10 @@ final class AppContainer {
         let client = GraphQLClient(endpoint: AppConfig.graphQLURL, tokenProvider: authSession)
 
         return AppContainer(
-            listings: GraphQLListingRepository(client: client),
+            repository: GraphQLRepository(client: client),
             assistant: GraphQLAssistantRepository(client: client),
-            auth: GraphQLAuthRepository(publicClient: publicClient, client: client, session: authSession)
+            auth: GraphQLAuthRepository(publicClient: publicClient, client: client, session: authSession),
+            chatURL: AppConfig.chatSocketURL
         )
     }
 

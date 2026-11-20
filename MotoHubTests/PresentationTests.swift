@@ -79,6 +79,9 @@ final class PresentationTests: XCTestCase {
         try await session.login(nick: "ali", password: "12345")
         XCTAssertEqual(session.member?.nick, "ali")
 
+        try await session.updateProfile(address: "Toshkent")
+        XCTAssertEqual(session.member?.address, "Toshkent")
+
         try await session.deleteAccount()
         XCTAssertNil(session.member)
         XCTAssertTrue(auth.deleted)
@@ -146,6 +149,15 @@ private final class FakeAuth: AuthRepository, @unchecked Sendable {
     }
 
     func logout() async { member = nil }
+
+    func updateProfile(nick: String?, phone: String?, address: String?, imagePath: String?) async throws -> Member? {
+        guard let old = member else { return nil }
+        member = Member(id: old.id, nick: nick ?? old.nick, phone: phone ?? old.phone, imagePath: imagePath ?? old.imagePath,
+                        type: old.type, fullName: old.fullName, address: address ?? old.address)
+        return member
+    }
+
+    func accessToken() async -> String? { nil }
 
     func deleteAccount() async throws {
         deleted = true

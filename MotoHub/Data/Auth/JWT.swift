@@ -25,9 +25,11 @@ enum JWT {
             id: "\(id)",
             nick: p["memberNick"] as? String ?? "",
             phone: p["memberPhone"] as? String,
-            imagePath: p["memberImage"] as? String,
+            // An account without a photo has memberImage "".
+            imagePath: (p["memberImage"] as? String).flatMap { $0.isEmpty ? nil : $0 },
             type: p["memberType"] as? String,
-            fullName: p["memberFullName"] as? String
+            fullName: p["memberFullName"] as? String,
+            address: p["memberAddress"] as? String
         )
     }
 }
