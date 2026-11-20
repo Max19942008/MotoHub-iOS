@@ -66,6 +66,9 @@ jobs:
               for a in test.get("attachments", []):
                   name = a.get("suggestedHumanReadableName") or a["exportedFileName"]
                   base = name.split("_")[0]
+                  # Only our numbered shots; XCTest also attaches debug dumps on failures.
+                  if not (base[:2].isdigit() and base[2:3] == "-"):
+                      continue
                   ext = os.path.splitext(a["exportedFileName"])[1] or ".png"
                   shutil.copy(os.path.join("raw", a["exportedFileName"]), os.path.join("screenshots", base + ext))
           print(sorted(os.listdir("screenshots")))

@@ -35,7 +35,7 @@ struct LiveChat: View {
                     .padding(.bottom, 16)
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
+        // Like the Android app, the panel and its button move up above the keyboard.
         .onAppear { chat.start(memberID: session.member?.id) }
         .onChange(of: session.member?.id) { _, id in chat.memberChanged(id) }
         .onChange(of: scenePhase) { _, phase in
